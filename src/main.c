@@ -4,7 +4,11 @@
 #include <readline/history.h>
 #include <readline/readline.h>
 #include "history.h"
-
+#include "token.h"
+#include "lexer.h"
+#include "parser.h"
+#include "expand.h"
+#include "builtin.h"
 
 int main(void)
 {
@@ -14,9 +18,9 @@ int main(void)
     printf(" A Unix Style Shell written in C\n");
     printf("=====================================\n");
 
-// Initializing History 
- using_history(); 
-
+ token_list_t tokens;
+ pipeline_t pipeline;
+ 
  char *line;
 
     while (1)
@@ -27,7 +31,6 @@ int main(void)
             printf("\nGoodbye!\n");
             break;
         }
-
         if (strlen(line) == 0)
         {
             free(line);
@@ -36,25 +39,64 @@ int main(void)
 
        if (strcmp(line, "history") == 0)
        {
-        print_history();
-        free(line);
-        continue;
+          print_history();
+          free(line);
+           continue;
        }
-    // adding the input line to history 
+// milestone 1 - enabling history
+
         add_history(line);
-       printf(" YOU ENTERED : %s\n", line); 
-	
-        if (strcmp(line, "exit") == 0)
+
+// milestone 2.1 - tokenization and lexer
+
+	lexer(line, &tokens);
+
+        token_print(&tokens);
+
+// milestone 2.2 - expansion of environment variables and parser
+
+	if(parser(&tokens, &pipeline))
+	{
+		expand_variables(&pipeline);
+    	        pipeline_print(&pipeline);
+	}
+
+
+	/*
+         * ------------------------------------------------
+         * BUILTIN TEST
+         * ------------------------------------------------
+         */
+
+        if (pipeline.command_count > 0)
         {
-            free(line);
-            printf("Exiting...\n");
-            break;
+            command_t *cmd =
+                &pipeline.commands[0];
+
+            if (is_builtin(cmd))
+            {
+                int result =
+                    execute_builtin(cmd);
+
+                /*
+                 * exit command
+                 */
+                if (result == 1)
+                {
+                    free(line);
+                    break;
+                }
+            }
+            else
+            {
+                printf("External command: %s\n",
+                       cmd->argv[0]);
+            }
         }
-	free(line);
-    }    
+
+       free(line);
+
+    }
+
     return 0;
 }
-
-
-
-
